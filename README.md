@@ -1,61 +1,82 @@
-# Gold Market Intelligence Dashboard
-**Author:** Daron Nyarko  
-**Built:** June 2026
+# N-CORE
 
----
+A quant trading terminal I designed, built and deployed myself. It scans a 298-ticker universe, backtests and walk-forward validates strategy families per asset, and delivers live signals to a mobile web app and a Telegram bot.
 
-## Overview
+**Author:** Daron Nyarko · Built June 2026 to present, with Claude Code
 
-A live AI-powered gold market dashboard built with Python and Streamlit. 
-Every time the app loads, an AI agent automatically:
+<p>
+  <img src="docs/screenshots/hub.png" width="230" alt="HUB screen: catalyst alert, S&P 500 chart, pinned assets with playbook status">
+  <img src="docs/screenshots/bias.png" width="230" alt="Bias screen: gold state, z-score, bands, entry, invalidation and target levels">
+  <img src="docs/screenshots/telegram.png" width="230" alt="Telegram bot posting a live playbook setup with chart, stop and target">
+</p>
+<p><em>Left to right: HUB, Bias, and the Telegram signal bot.</em></p>
 
-1. Pulls real-time gold price data and renders live charts with moving averages
-2. Scrapes current gold market news headlines
-3. Runs sentiment analysis on the headlines and scores market direction
-4. Generates a fresh investment memo using Claude AI based on live price data and sentiment
+## What it does
 
-## 📊 Algorithmic Methodology: Quantitative vs. Institutional Frameworks
+- **Bias and levels.** For each asset, the engine reports the current state, trend, entry level, invalidation and target, so I can see at a glance whether a setup is live.
+- **Strategy lab.** Every strategy family is backtested and walk-forward validated per asset. Only pairs that pass validation get assigned to the playbook.
+- **Screener.** Scans the full universe for candidates that match a validated setup.
+- **Positions and journal.** Tracks open positions, real P&L and closed trades, with a "shield" that flags positions at risk ahead of earnings.
+- **AI layer.** Claude reads market news for sentiment, answers plain-English questions about a setup, and writes market memos.
+- **Alerts.** Push notifications in the app and a Telegram bot (`/bias sofi`, `/levels gold`, `/status`) that answers from engine math with no AI cost.
 
-This dashboard utilizes an automated, data-driven **Statistical Volatility & Mean Reversion Engine** to track intraday inefficiencies in the Gold market. For users coming from price action or retail backgrounds (such as ICT/SMC), the mathematical components map directly to institutional delivery concepts:
+## How it's built
 
-### 1. Volatility Baseline (20 EMA) = The Institutional Equilibrium
-* **Quantitative Definition:** A 20-period Exponential Moving Average that dynamically weights recent daily settlement prices.
-* **Institutional Mapping:** This represents **Fair Value (Equilibrium)**. Rather than utilizing static premium/discount ranges, the 20 EMA functions as a fluid anchor point where price is structurally balanced. 
+```
+api/        FastAPI backend: 30+ JSON endpoints and the Telegram webhook
+  main.py       routes
+  analytics.py  strategy lab, walk-forward validation, playbook
+  feed.py       market data feed (Yahoo Finance) with caching and rate-limit backoff
+  screener.py   universe scan
+  ai.py         Claude API calls for sentiment, Q&A and memos
+  store.py      positions, watchlist and playbook persistence
+  db.py         Supabase connection
+web/        React + Vite mobile PWA (installable, push notifications, Supabase auth)
+quant_core.py   strategy definitions and backtest engine
+signal_engine.py  signal generation
+db/         Supabase SQL schema and migrations
+docs/       build briefs and screenshots
+app.py      the original Streamlit dashboard (v1)
+```
 
-### 2. Upper & Lower Bands = Premium & Discount Arrays
-* **Quantitative Definition:** Volatility boundaries set at $\pm2.0$ Standard Deviations away from the 20 EMA baseline.
-* **Institutional Mapping:** These limits track automated expansions. 
-  * **The Upper Band** represents a **Premium Expansion Zone** where speculative retail buying is overextended.
-  * **The Lower Band** represents a **Discount Inefficiency Array** where institutional sell-side liquidity has been swept, leaving a pricing dislocation.
+**Stack:** Python, FastAPI, Pandas, NumPy, React 19, Vite, lightweight-charts, Supabase (Postgres + auth), Claude API, Telegram Bot API, Railway.
 
-### 3. Macro Trend Line (200 EMA) = Higher Timeframe (HTF) Institutional Order Flow
-* **Quantitative Definition:** A long-term technical boundary mapping the broad multi-month directional trend.
-* **Institutional Mapping:** This serves as our **Higher Timeframe Bias filter**. To mitigate counter-trend risk and avoid fighting massive corporate capital waves, the algorithm enforces a strict execution rule:
-  * **Price above 200 EMA:** Institutional Order Flow is **Bullish**. The engine blocks all short setups and exclusively executes on **Discount Fills** at the lower band.
-  * **Price below 200 EMA:** Institutional Order Flow is **Bearish**. The engine blocks all long setups and exclusively executes on **Premium Burns** at the upper band.
+## How I built it with Claude Code
 
-### 4. Strategy Target Execution
-When a market inefficiency triggers an entry (e.g., dipping into a Discount Array during an HTF uptrend), the algorithm initiates a position. The position is held until price gravitates back to the **20 EMA Baseline**, successfully rebalancing the chart back to Equilibrium. A strict **2.5% Stop Loss** is programmatically enforced to protect capital against runaway expansions.
+I built N-CORE in phases. For each phase I wrote a brief that set the scope, the API contract between backend and frontend, what not to build yet, and a definition of done. Then I used Claude Code to implement it and reviewed the result before moving on. The briefs are in [`docs/claude-code-briefs/`](docs/claude-code-briefs/).
 
+| Phase | What shipped |
+|---|---|
+| 1 | Quant core API and Telegram command bot |
+| 2 | Mobile PWA with five tabs: HUB, Bias, Chart, News, Positions |
+| 3–4 | AI tier (sentiment, Ask), alpha optimizer, trade validation, strategy lab |
+| 5–6 | Automation, notifications, position entry, agent worker |
+| 7–9 | Real P&L, journal, Supabase persistence, screener, signal ledger, earnings shield |
+| 13–14 | Ninth strategy family, quiet mode, feed hardening, cluster-risk banner |
 
-## Tech Stack
+## Run it locally
 
-- Python (Streamlit, yfinance, Pandas, Matplotlib, BeautifulSoup)
-- Claude API (claude-sonnet-4-6) for sentiment analysis and memo generation
-- Data sourced from Yahoo Finance
+Backend:
 
----
+```
+pip install -r requirements.txt
+# .env: ANTHROPIC_API_KEY, plus Supabase and Telegram keys if you want those features
+uvicorn api.main:app --reload --port 8000
+```
 
-## Setup
+Frontend:
 
-1. Clone the repo
-2. Install dependencies: `pip install -r requirements.txt`
-3. Add your Anthropic API key to a `.env` file: `ANTHROPIC_API_KEY=your-key-here`
-4. Run: `streamlit run app.py`
+```
+cd web
+cp .env.example .env   # set VITE_API_URL to http://localhost:8000
+npm install
+npm run dev
+```
 
----
+Original Streamlit dashboard: `streamlit run app.py`
 
-## Related Project
+## Where it started
 
-This dashboard is an extension of my original static gold market analysis:  
-[Gold Market Trend Analysis & Price Forecast](https://github.com/TechnicallyDaron/Gold-Market-Analysis)
+N-CORE began as a Streamlit dashboard for gold. It pulled live prices, scored news sentiment, and had Claude write an investment memo on each load. Its mean-reversion engine used a 20 EMA baseline, ±2 standard deviation bands, a 200 EMA trend filter and a 2.5% stop. That logic became the first strategy family in N-CORE. The earlier static analysis is in [Gold-Market-Analysis](https://github.com/TechnicallyDaron/Gold-Market-Analysis).
+
+*Not financial advice. This is a personal research tool.*
