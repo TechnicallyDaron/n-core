@@ -23,7 +23,7 @@ A quant trading terminal I designed, built and deployed myself. It scans a 298-t
 | Asset-strategy pairs that passed validation | 43 |
 | Live signals | about 6.5 a week |
 
-Most candidates were rejected. That was the point: about 2,400 backtests produced 43 pairs worth trading.
+Most candidates were rejected. That was the point: about 2,400 backtests produced 43 pairs that passed validation.
 
 ## What it does
 
